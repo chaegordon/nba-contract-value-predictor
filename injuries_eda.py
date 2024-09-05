@@ -44,4 +44,22 @@ for person, dates in results.items():
         )
 # drop row with no person
 injuries = injuries.dropna(subset=["Person"])
-print(injuries.to_csv("injuries_clean.csv", index=False))
+injuries.to_csv("injuries_clean.csv", index=False)
+# create a new column for injury duration
+injuries["Injury_duration"] = injuries["Relinquished_date"] - injuries["Acquired_date"]
+# group by person and calculate the total injury duration, and the number of injuries, and average injury duration
+injuries = injuries.groupby("Person").agg(
+    Total_duration=("Injury_duration", "sum"),
+    Number_of_injuries=("Injury_duration", "count"),
+    # use median because somtimes the spider misses dates which leads to outliers
+    Median_duration=("Injury_duration", "meadian"),
+    # last injury date
+    Last_injury_date=("Relinquished_date", "max"),
+)
+# express the total duration in years
+injuries["Total_duration_yrs"] = injuries["Total_duration"].dt.days / 365.25
+# sort  by Last_injury_date
+injuries = injuries.sort_values("Last_injury_date")
+print(injuries.head())
+# save the results
+injuries.to_csv("injuries_by_person.csv")

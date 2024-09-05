@@ -5,6 +5,12 @@ import time
 import tqdm
 
 
+"""
+Sometimes dates are missed leading to outliers in the data. E.g. consider Lebron James, the spider missed some dates leading to 1000+ days of injury duration which were false.
+
+However, applying the median function to the injury duration column can help to mitigate this issue and I think the data as is will be of use.
+"""
+
 end_index = int(39825 / 25)
 
 data_rows = []
