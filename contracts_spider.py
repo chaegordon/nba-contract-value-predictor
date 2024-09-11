@@ -14,32 +14,6 @@ rate_limit = 1.5 * (
 )  # 1.5 times the number of sleeps requested to have 20 requests per minute
 
 
-def get_teams():
-    time.sleep(rate_limit)
-    response = requests.get(teams_url)
-    tree = html.fromstring(response.content)
-    # get div with id="div_team_summary"
-    teams = tree.xpath("//div[@id='div_team_summary']")
-    # find tbody within teams
-    teams = teams[0].xpath(".//tbody")
-    # get all tr elements
-    teams = teams[0].xpath(".//tr")
-    data = []
-    # get the team names and data
-    for i, team in enumerate(teams):
-        #    data-stat="team_name"
-        team_name = team.xpath(".//td[@data-stat='team_name']/a/text()")
-        y1_salary = team.xpath(".//td[@data-stat='y1']/text()")
-        data.append([team_name] + [y1_salary])
-
-    teams = pd.DataFrame(data, columns=["Team", "Y1_Salary"])
-    return teams
-
-
-# teams_df = get_teams()
-# teams_df.to_csv("teams_salaries.csv", index=False)
-
-
 # get the players salaries
 def get_players():
     # rate limit
@@ -54,7 +28,7 @@ def get_players():
     teams = teams[0].xpath(".//tbody")
     # get all tr elements
     teams = teams[0].xpath(".//tr")
-    teams = teams[0:1]  # only get the first team for testing
+    # teams = teams[0:1]  # only get the first team for testing
     data = []
     # get the team names and data
     for i, team in enumerate(teams):
@@ -73,7 +47,7 @@ def get_players():
         contracts = contracts[0].xpath(".//tbody")
         # get all tr elements
         contracts = contracts[0].xpath(".//tr")
-        contracts = contracts[0:1]  # only get the first player for testing
+        # contracts = contracts[0:10]  # only get the first 10 player for testing
         # get the player names and salaries
         for j, player in enumerate(contracts):
             player_name = player.xpath(".//th[@data-stat='player']/a/text()")
@@ -88,19 +62,24 @@ def get_players():
     return players
 
 
-# players_df = get_players()
-# players_df.to_csv("players_salaries.csv", index=False)
-# print(players_df.head())
-
-
-# get the players stats for the year
-
-
 def get_player_stats():
     players_df = get_players()
     # remove list brackets
     for col in players_df.columns:
-        players_df[col] = players_df[col].apply(lambda x: x[0])
+        try:
+            players_df[col] = players_df[col].apply(
+                lambda x: x[0] if isinstance(x, list) and len(x) > 0 else x
+            )
+        except Exception as e:
+            print(f"Error trying to de-list column {col}")
+            # print the error
+            print(f"Error: {e}")
+            print(players_df[col].head())
+            # loop over all the values and get the types of the elements
+            for i, x in enumerate(players_df[col]):
+                # if not a list, print the type
+                if not isinstance(x, list):
+                    print(i, type(x))
 
     # strip $ from Salary column and convert to float
     players_df["Salary"] = (
@@ -120,10 +99,27 @@ def get_player_stats():
         # Height and weight
         height_weight = tree.xpath("//p/text()[contains(., 'cm')]")
         # Use regex to extract numbers from the string
-        cm, kg = map(int, re.findall(r"\d+", height_weight[0]))
-        players_df.at[i, "Height_cm"] = float(cm)
-        players_df.at[i, "Weight_kg"] = float(kg)
-
+        try:
+            cm, kg = map(int, re.findall(r"\d+", height_weight[0]))
+            players_df.at[i, "Height_cm"] = float(cm)
+            players_df.at[i, "Weight_kg"] = float(kg)
+        except Exception as e:
+            print(
+                f"Error trying to extract height and weight for player {player['Player']}"
+            )
+            # print the error
+            print(f"Error: {e}")
+            print(height_weight)
+            try:
+                cm = int(re.findall(r"\d+", height_weight[0])[0])
+                kg = pd.NA
+                players_df.at[i, "Height_cm"] = float(cm)
+                players_df.at[i, "Weight_kg"] = kg
+            except Exception as e:
+                print(f"Error trying to extract height for player {player['Player']}")
+                # print the error
+                print(f"Error: {e}")
+                print(height_weight)
         # Game Splits Stats
         # find div with "all_per_game"
         stats = tree.xpath("//td[@data-stat and @class='right ']")
@@ -141,8 +137,10 @@ def get_player_stats():
         "plus_minus_per_200_poss"
     ].astype(float)
 
-    print(players_df.head())
-    print(players_df.dtypes)
+    # print(players_df.head())
+    # print(players_df.dtypes)
+    return players_df
 
 
-get_player_stats()
+players_df = get_player_stats()
+players_df.to_csv("players_stats.csv", index=False)
