@@ -35,8 +35,8 @@ def get_teams():
     return teams
 
 
-teams_df = get_teams()
-teams_df.to_csv("teams_salaries.csv", index=False)
+# teams_df = get_teams()
+# teams_df.to_csv("teams_salaries.csv", index=False)
 
 
 # get the players salaries
@@ -53,6 +53,7 @@ def get_players():
     teams = teams[0].xpath(".//tbody")
     # get all tr elements
     teams = teams[0].xpath(".//tr")
+    teams = teams[0:1]  # only get the first team for testing
     data = []
     # get the team names and data
     for i, team in enumerate(teams):
@@ -71,11 +72,12 @@ def get_players():
         contracts = contracts[0].xpath(".//tbody")
         # get all tr elements
         contracts = contracts[0].xpath(".//tr")
+        contracts = contracts[0:1]  # only get the first player for testing
         # get the player names and salaries
         for j, player in enumerate(contracts):
-            player_name = player.xpath(".//td[@data-stat='player']/a/text()")
+            player_name = player.xpath(".//th[@data-stat='player']/a/text()")
             # get player link
-            player_link = player.xpath(".//td[@data-stat='player']/a/@href")
+            player_link = player.xpath(".//th[@data-stat='player']/a/@href")
             player_age = player.xpath(".//td[@data-stat='age_today']/text()")
             salary = player.xpath(".//td[@data-stat='y1']/text()")
             data.append([player_name] + [player_link] + [player_age] + [salary])
@@ -85,6 +87,31 @@ def get_players():
     return players
 
 
-players_df = get_players()
-players_df.to_csv("players_salaries.csv", index=False)
-print(players_df.head())
+# players_df = get_players()
+# players_df.to_csv("players_salaries.csv", index=False)
+# print(players_df.head())
+
+
+# get the players stats for the year
+
+
+def get_player_stats():
+    players_df = get_players()
+    data = []
+    for i, player in tqdm.tqdm(enumerate(players_df["Link"])):
+        player_link = (
+            "https://www.basketball-reference.com" + player[0] + "/splits/2024"
+        )
+        # remove ".html"
+        player_link = player_link.replace(".html", "")
+        print(player_link)
+        time.sleep(rate_limit)
+        response = requests.get(player_link)
+        tree = html.fromstring(response.content)
+        # find div with "all_per_game"
+        stats = tree.xpath("//td[@data-stat and @class='right ']/@data-stat")
+        value = tree.xpath("//td[@data-stat and @class='right ']/text()")
+        print(stats[0], value[0])
+
+
+get_player_stats()
