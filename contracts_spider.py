@@ -3,6 +3,7 @@ from lxml import html
 import pandas as pd
 import time
 import tqdm
+import re
 
 teams_url = "https://www.basketball-reference.com/contracts/"
 
@@ -97,10 +98,17 @@ def get_players():
 
 def get_player_stats():
     players_df = get_players()
-    data = []
-    for i, player in tqdm.tqdm(enumerate(players_df["Link"])):
+    # remove list brackets
+    for col in players_df.columns:
+        players_df[col] = players_df[col].apply(lambda x: x[0])
+
+    # strip $ from Salary column and convert to float
+    players_df["Salary"] = (
+        players_df["Salary"].str.replace("$", "").str.replace(",", "")
+    ).astype(float)
+    for i, player in players_df.iterrows():
         player_link = (
-            "https://www.basketball-reference.com" + player[0] + "/splits/2024"
+            "https://www.basketball-reference.com" + player["Link"] + "/splits/2024"
         )
         # remove ".html"
         player_link = player_link.replace(".html", "")
@@ -108,10 +116,33 @@ def get_player_stats():
         time.sleep(rate_limit)
         response = requests.get(player_link)
         tree = html.fromstring(response.content)
+
+        # Height and weight
+        height_weight = tree.xpath("//p/text()[contains(., 'cm')]")
+        # Use regex to extract numbers from the string
+        cm, kg = map(int, re.findall(r"\d+", height_weight[0]))
+        players_df.at[i, "Height_cm"] = float(cm)
+        players_df.at[i, "Weight_kg"] = float(kg)
+
+        # Game Splits Stats
         # find div with "all_per_game"
-        stats = tree.xpath("//td[@data-stat and @class='right ']/@data-stat")
-        value = tree.xpath("//td[@data-stat and @class='right ']/text()")
-        print(stats[0], value[0])
+        stats = tree.xpath("//td[@data-stat and @class='right ']")
+        # take first 29 elements only (this year stats)
+        stats = stats[0:29]
+        for j, td in enumerate(stats):
+            data_stat = td.get("data-stat")  # Get the data-stat attribute
+            text_value = (
+                td.text_content().strip()
+            )  # Get the text content (strip any extra spaces)
+            players_df.at[i, data_stat] = float(text_value)
+
+    # convert plus_minus to float
+    players_df["plus_minus_per_200_poss"] = players_df[
+        "plus_minus_per_200_poss"
+    ].astype(float)
+
+    print(players_df.head())
+    print(players_df.dtypes)
 
 
 get_player_stats()
