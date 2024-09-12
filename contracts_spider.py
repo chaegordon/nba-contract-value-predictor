@@ -4,6 +4,7 @@ import pandas as pd
 import time
 import tqdm
 import re
+import numpy as np
 
 teams_url = "https://www.basketball-reference.com/contracts/"
 
@@ -58,6 +59,16 @@ def get_players():
             data.append([player_name] + [player_link] + [player_age] + [salary])
 
     players = pd.DataFrame(data, columns=["Player", "Link", "Age", "Salary"])
+
+    # drop rows with missing values for Link or Salary
+    players = players.applymap(
+        lambda x: np.nan if isinstance(x, list) and len(x) == 0 else x
+    )
+    players = players.dropna(subset=["Link", "Salary"])
+    # NB: will lose waived players, and those without a salary !!
+
+    # save to csv
+    players.to_csv("players.csv", index=False)
 
     return players
 
