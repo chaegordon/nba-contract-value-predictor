@@ -42,7 +42,9 @@ X = data.drop(columns=["Salary"])
 # NB: there is very collinearity between the variables
 
 # create a test train split
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1)
+X_train, X_test, Y_train, Y_test = train_test_split(
+    X, Y, test_size=0.1, random_state=42
+)
 
 # fit a linear model
 model = LinearRegression()
