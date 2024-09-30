@@ -1,0 +1,11 @@
+services:
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: jupyter notebook --ip 0.0.0.0 --NotebookApp.token='' --NotebookApp.password='' --allow-root
+    ports:
+      - "8888:8888"
+    volumes:
+      - "./analysis.ipynb:/app/analysis.ipynb"
